@@ -22,23 +22,34 @@ def single_thread_fill_table(rows, cols):
 
 # Multi-threaded filling
 def parallel_fill_table(rows, cols, num_threads):
-    table = [[0 for _ in range(cols)] for _ in range(rows)]
+    # Create independent chunks for each thread to work on
+    chunks = [[] for _ in range(num_threads)]  # Each thread has its own chunk
+
     chunk_size = rows // num_threads
     threads = []
 
     start_time = time.time()
     for t in range(num_threads):
-        print(table)
-        print("\n")
+        # Create a separate chunk of rows for each thread
+        chunks[t] = [[0 for _ in range(cols)] for _ in range(chunk_size)]
+
+        # Define start and end indices for the thread's chunk
         start_row = t * chunk_size
         end_row = (t + 1) * chunk_size if t != num_threads - 1 else rows
-        thread = threading.Thread(target=fill_table, args=(table, start_row, end_row, t + 1))
+
+        # Thread works only on its local chunk
+        thread = threading.Thread(target=fill_table, args=(chunks[t], 0, end_row - start_row, t + 1))
         threads.append(thread)
         thread.start()
 
     for thread in threads:
         thread.join()
     end_time = time.time()
+
+    # Combine chunks into the final table
+    table = []
+    for chunk in chunks:
+        table.extend(chunk)
 
     return table, end_time - start_time
 
@@ -47,7 +58,7 @@ def parallel_fill_table(rows, cols, num_threads):
 def handle_client(conn):
     try:
         # Receive data from client
-        data = conn.recv(1090).decode()
+        data = conn.recv(1024).decode()
         request = json.loads(data)
         rows = request['rows']
         cols = request['cols']
